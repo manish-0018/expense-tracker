@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Expense Tracker 2.0</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --primary: #1f3a93;
+      --accent: #f39c12;
+      --light-bg: #f9f9f9;
+      --dark-bg: #1e1e1e;
+      --light-text: #333;
+      --dark-text: #f1f1f1;
+      --balance-item-bg: #ecf0f1;
+      --dark-balance-item-bg: #2c3e50;
+      --header-bg: #808080;
+    }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: var(--light-bg);
+      color: var(--light-text);
+      margin: 0;
+      padding: 0;
+      transition: background 0.3s, color 0.3s;
+    }
+
+    body.dark {
+      background: var(--dark-bg);
+      color: var(--dark-text);
+    }
+
+    header {
+      background: var(--header-bg);
+      color: white;
+      padding: 1.5rem;
+      text-align: center;
+      position: relative;
+    }
+
+    header h1 {
+      font-size: 50px;
+      margin: 0;
+      
+      
+    }
+
+    .logout-btn, .dark-btn {
+      position: absolute;
+      top: 20px;
+      padding: 6px 8px;
+      font-size: 0.8rem;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      color: white;
+    }
+
+    .logout-btn {
+      right: 5px;
+      background-color: #ff0000;
+      width:50px;
+      height:25px;
+      top:1px;
+    }
+
+    .dark-btn {
+      right: 65px;
+      background-color: #333;
+      width:45px;
+      height:25px;
+      top:1px;
+    }
+
+    .container {
+      max-width: 1000px;
+      margin: 30px auto;
+      background: white;
+      padding: 25px;
+      border-radius: 12px;
+      box-shadow: 0 0 15px rgba(0,0,0,0.1);
+    }
+
+    body.dark .container {
+      background: #2e2e2e;
+    }
+
+    input, select, button {
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      width: 100%;
+    }
+
+    #login-container {
+      max-width: 400px;
+      margin: 30px auto;
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 0 15px rgba(0,0,0,0.1);
+    }
+
+    @media (max-width: 480px) {
+      #login-container {
+        padding: 15px;
+        width: 90%;
+      }
+    }
+
+    .chart-container canvas {
+      width: 180px !important;
+      height: 180px !important;
+    }
+
+    .balance-sheet-header, .balance-sheet-item {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr auto;
+      gap: 10px;
+      padding: 10px;
+      border-radius: 6px;
+      background: var(--balance-item-bg);
+      margin-bottom: 8px;
+    }
+
+    body.dark .balance-sheet-header, body.dark .balance-sheet-item {
+      background: var(--dark-balance-item-bg);
+    }
+
+    .balance-sheet-header {
+      font-weight: bold;
+      background: #bdc3c7;
+    }
+
+    .balance-sheet-footer {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px;
+      padding-top: 10px;
+      border-top: 1px solid #ccc;
+      font-weight: bold;
+    }
+
+    .progress-bar {
+      background: #ddd;
+      border-radius: 10px;
+      overflow: hidden;
+      margin: 10px 0;
+      height: 20px;
+    }
+     
+    .edit{
+      height:25px;
+      width:45px;
+      top:1px;
+      text-align: center;
+    }
+    .progress-bar-inner {
+      background: #27ae60;
+      height: 100%;
+      text-align: center;
+      color: white;
+      line-height: 20px;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <button class="dark-btn" onclick="toggleDarkMode()">🌙</button>
+  <h1>Expense Tracker</h1>
+  <button class="logout-btn" onclick="logout()">Logout</button>
+</header>
+
+<div id="login-container">
+  <h2>Login</h2>
+  <input type="text" id="username" placeholder="Username" />
+  <input type="password" id="password" placeholder="Password" />
+  <button onclick="login()">Login</button>
+</div>
+
+<div class="container" id="app-container" style="display: none;">
+  <h2>Welcome, <span id="userDisplay"></span></h2>
+
+  <input type="number" id="budgetInput" placeholder="Set Monthly Budget" />
+  <button onclick="setBudget()">Set Budget</button>
+  <div id="budgetDisplay"></div>
+  <div class="progress-bar"><div id="progressBar" class="progress-bar-inner"></div></div>
+
+  <h3>Add Expense</h3>
+  <input type="text" id="expenseName" placeholder="Expense Name" />
+  <input type="number" id="expenseAmount" placeholder="Amount" />
+  <input type="date" id="expenseDate" />
+  <select id="expenseCategory">
+    <option value="Food">Food</option>
+    <option value="Transport">Transport</option>
+    <option value="Bills">Bills</option>
+    <option value="Shopping">Shopping</option>
+    <option value="Other">Other</option>
+  </select>
+  <button onclick="addExpense()">Add Expense</button>
+
+  <h3>Filters</h3>
+  <select id="filterCategory" onchange="renderBalanceSheet()">
+    <option value="">All Categories</option>
+    <option value="Food">Food</option>
+    <option value="Transport">Transport</option>
+    <option value="Bills">Bills</option>
+    <option value="Shopping">Shopping</option>
+    <option value="Other">Other</option>
+  </select>
+
+  <div class="chart-container">
+    <canvas id="expenseChart"></canvas>
+  </div>
+
+  <h3>Balance Sheet</h3>
+  <div class="balance-sheet-header">
+    <div>Expenses</div>
+    <div>Amount (₹)</div>
+    <div>Date</div>
+    <div>Action</div>
+  </div>
+  <div id="balanceSheet"></div>
+  <div class="balance-sheet-footer">
+    <div>Total</div>
+    <div id="totalAmount"></div>
+    <div></div>
+  </div>
+</div>
+
+<script>
+  let currentUser = null;
+  let dataStore = JSON.parse(localStorage.getItem('dataStore')) || {};
+
+  function saveData() {
+    localStorage.setItem('dataStore', JSON.stringify(dataStore));
+  }
+
+  function login() {
+    const username = document.getElementById('username').value;
+    const password = document.getElementById('password').value;
+    if (!username || !password) return alert("Enter username & password");
+    currentUser = username;
+    if (!dataStore[username]) {
+      dataStore[username] = { expenses: [], budget: null, lastMonth: null };
+    }
+    document.getElementById('login-container').style.display = 'none';
+    document.getElementById('app-container').style.display = 'block';
+    document.getElementById('userDisplay').innerText = username;
+    renderChart();
+    renderBalanceSheet();
+    updateBudgetDisplay();
+  }
+
+  function logout() {
+    currentUser = null;
+    document.getElementById('login-container').style.display = 'block';
+    document.getElementById('app-container').style.display = 'none';
+  }
+
+  function toggleDarkMode() {
+    document.body.classList.toggle('dark');
+  }
+
+  function setBudget() {
+    const now = new Date();
+    const monthKey = `${now.getFullYear()}-${now.getMonth()}`;
+    if (dataStore[currentUser].lastMonth !== monthKey) {
+      dataStore[currentUser].budget = document.getElementById('budgetInput').value;
+      dataStore[currentUser].lastMonth = monthKey;
+      saveData();
+      updateBudgetDisplay();
+    } else {
+      alert("Budget already set for this month.");
+    }
+  }
+
+  function updateBudgetDisplay() {
+    const budget = dataStore[currentUser].budget;
+    const total = dataStore[currentUser].expenses.reduce((sum, e) => sum + e.amount, 0);
+    document.getElementById('budgetDisplay').innerText = `Monthly Budget: ₹${budget || 0}`;
+    const percent = budget ? Math.min(100, (total / budget) * 100) : 0;
+    document.getElementById('progressBar').style.width = percent + '%';
+    document.getElementById('progressBar').innerText = `${Math.round(percent)}%`;
+  }
+
+  function addExpense() {
+    const name = document.getElementById('expenseName').value;
+    const amount = parseFloat(document.getElementById('expenseAmount').value);
+    const date = document.getElementById('expenseDate').value;
+    const category = document.getElementById('expenseCategory').value;
+    if (!name || isNaN(amount) || !date) return alert("Fill all fields");
+    dataStore[currentUser].expenses.push({ name, amount, date, category });
+    saveData();
+    renderChart();
+    renderBalanceSheet();
+    updateBudgetDisplay();
+  }
+
+  function renderChart() {
+    const ctx = document.getElementById('expenseChart').getContext('2d');
+    const categories = {};
+    dataStore[currentUser].expenses.forEach(e => {
+      categories[e.category] = (categories[e.category] || 0) + e.amount;
+    });
+    const chartData = {
+      labels: Object.keys(categories),
+      datasets: [{ data: Object.values(categories), backgroundColor: ['#3498db', '#2ecc71', '#e74c3c', '#f39c12', '#9b59b6'] }]
+    };
+    if (window.pieChart) window.pieChart.destroy();
+    window.pieChart = new Chart(ctx, { type: 'pie', data: chartData });
+  }
+
+  function renderBalanceSheet() {
+    const sheet = document.getElementById('balanceSheet');
+    sheet.innerHTML = '';
+    const filterCat = document.getElementById('filterCategory').value;
+    let total = 0;
+
+    dataStore[currentUser].expenses.forEach((e, index) => {
+      if (filterCat && e.category !== filterCat) return;
+      total += e.amount;
+      sheet.innerHTML += `
+        <div class="balance-sheet-item">
+          <div>${e.name}</div>
+          <div>₹${e.amount}</div>
+          <div>${e.date}</div>
+          <div><button  class="edit" onclick="editExpense(${index})">Edit</button></div>
+        </div>`;
+    });
+
+    document.getElementById('totalAmount').innerText = `₹${total.toFixed(2)}`;
+  }
+
+  function editExpense(index) {
+    const e = dataStore[currentUser].expenses[index];
+    document.getElementById('expenseName').value = e.name;
+    document.getElementById('expenseAmount').value = e.amount;
+    document.getElementById('expenseDate').value = e.date;
+    document.getElementById('expenseCategory').value = e.category;
+    dataStore[currentUser].expenses.splice(index, 1);
+    saveData();
+    renderBalanceSheet();
+    renderChart();
+    updateBudgetDisplay();
+  }
+</script>
+
+</body>
+</html>
